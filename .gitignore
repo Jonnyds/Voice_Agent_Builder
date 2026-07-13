@@ -2,3 +2,6 @@ __pycache__
 .env
 *.pyc
 .venv
+
+# Large uncompressed source recording (committed version is demo.mp4)
+Demo_Video.mp4
