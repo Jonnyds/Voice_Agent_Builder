@@ -174,26 +174,15 @@ server-side (in Python) and never reaches the browser.
 
 ## Design decisions
 
-**Builder = prompt + output schema, not a heavy agent framework.** The builder is a single
-LLM call. There's no branching, multi-node control flow, so LangGraph or an agent framework
-would be over-engineering.
+**Builder = prompt + output schema, not a heavy agent framework.** The builder is a single LLM call. There's no branching, multi-node control flow, so LangGraph or an agent framework would be over-engineering.
 
-**Structured output, not text parsing.** The builder uses Anthropic tool-calling with a
-forced tool whose schema *is* the config contract, so the API returns a validated object
-directly — no fragile JSON scraping and no separate validation step. The schema enforces the
-shape (required fields, question count, a minimum systemPrompt length).
+**Structured output, not text parsing.** The builder uses Anthropic tool-calling with a forced tool whose schema *is* the config contract, so the API returns a validated object directly — no fragile JSON scraping and no separate validation step. The schema enforces the shape (required fields, question count, a minimum systemPrompt length).
 
-**Safety routing (build / clarify / refuse).** Before building, the builder decides an
-action: refuse harmful or manipulative requests (including prompt-injection attempts hidden
-in the description), ask a clarifying question when the description is too vague, or build.
+**Safety routing (build / clarify / refuse).** Before building, the builder decides an action: refuse harmful or manipulative requests (including prompt-injection attempts hidden in the description), ask a clarifying question when the description is too vague, or build.
 
-**Web call, not phone.** The demo uses a Vapi **web call** — a real voice conversation over
-the browser — so it needs no phone number, no telephony provider, and no per-call setup, and
-it works anywhere. The Vapi **public** key is a *publishable* key, designed to be used in
-client-side code (like a Stripe publishable key), so shipping it in the browser is expected
-and safe — the Anthropic key and any private Vapi key stay server-side. Note "publishable"
-does not mean "powerless": a public key can start web calls, so in production it should be
-rate-limited and domain-restricted in the Vapi dashboard to prevent abuse.
+**Web call, not phone.** The demo uses a Vapi **web call** — a real voice conversation over the browser — so it needs no phone number, no telephony provider, and no per-call setup, and it works anywhere. The Vapi **public** key is a *publishable* key, designed to be used in client-side code (like a Stripe publishable key), so shipping it in the browser is expected and safe — the Anthropic key and any private Vapi key stay server-side. Note "publishable" does not mean "powerless": a public key can start web calls, so in production it should be rate-limited and domain-restricted in the Vapi dashboard to prevent abuse.
+
+**Why Claude Sonnet.** Sonnet runs both the builder and the voice agent: it follows the multi-rule qualifying script reliably — in testing, other models drifted (skipped or reordered questions, booked unqualified leads), while Sonnet asked all questions in order, enforced disqualifiers, and respected booking constraints — and it's fast enough for real-time voice, where a heavier reasoning model would add latency for no conversational gain. The model is set via .env (BUILDER_MODEL / VOICE_MODEL), so it's swappable without code changes.
 
 ---
 
@@ -213,34 +202,20 @@ rate-limited and domain-restricted in the Vapi dashboard to prevent abuse.
                     transcript + BOOKING events  ->  appended to the call log
 ```
 
-Python builds the agent (the schema enforces its shape); the browser (via Vapi's web SDK)
-runs the actual voice call. They meet at a hidden text box that carries the config from
-Python into the JavaScript when you press Start.
+Python builds the agent (the schema enforces its shape); the browser (via Vapi's web SDK) runs the actual voice call. They meet at a hidden text box that carries the config from Python into the JavaScript when you press Start.
 
 ---
 
 ## Production path (not in this demo)
 
-The **builder** half carries over and the same generated config drives production.
-The **calling** half is genuinely different, though. This demo runs the call client-side
-(browser mic, an inline assistant, the publishable key). Real outbound **phone** calls are
-server-side: you create a saved assistant and place calls via Vapi's `/call` endpoint using
-the **private** key and an imported phone number (free Vapi numbers are US-only; international
-requires importing a Twilio/provider number). Booking also moves from the in-browser display
-to a **webhook** that writes to a real calendar (Cal.com / Google Calendar). So config
-generation is identical; the telephony and booking layers change.
+The **builder** half carries over and the same generated config drives production. The **calling** half is genuinely different, though. This demo runs the call client-side (browser mic, an inline assistant, the publishable key). Real outbound **phone** calls are server-side: you create a saved assistant and place calls via Vapi's `/call` endpoint using the **private** key and an imported phone number (free Vapi numbers are US-only; international requires importing a Twilio/provider number). Booking also moves from the in-browser display to a **webhook** that writes to a real calendar (Cal.com / Google Calendar). So config generation is identical; the telephony and booking layers change.
 
 ---
 
 ## Known limitation
 
-The voice agent follows its instructions conversationally rather than reading the qualifying
-questions as a rigid script — it may occasionally reword or reorder a question. Using a
-strong instruction-following model (Claude Sonnet) for the voice agent keeps this tight, and
-in testing it reliably asks all questions in order, enforces disqualifiers (e.g. under-18),
-and respects booking constraints (e.g. opening hours). Guaranteeing an exact script every
-time would mean driving the turn-by-turn flow in code rather than trusting the model — a
-deliberate scoping choice left out of this demo.
+The voice agent follows its instructions conversationally rather than reading the qualifying questions as a rigid script — it may occasionally reword or reorder a question. Using a strong instruction-following model (Claude Sonnet) for the voice agent keeps this tight, and
+in testing it reliably asks all questions in order, enforces disqualifiers (e.g. under-18), and respects booking constraints (e.g. opening hours). Guaranteeing an exact script every
+time would mean driving the turn-by-turn flow in code rather than trusting the model — a deliberate scoping choice left out of this demo.
 
-Booking is captured and displayed (the `BOOKING` payload) rather than written to a live
-calendar, as noted in the production path above.
+Booking is captured and displayed (the `BOOKING` payload) rather than written to a live calendar, as noted in the production path above.

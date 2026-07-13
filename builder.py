@@ -3,7 +3,7 @@
 build, ask a clarifying question, or refuse.
 
 Output is produced via a forced tool call, so the API returns a schema-validated
-config directly — no manual JSON parsing.
+config directly - no manual JSON parsing.
 """
 
 import os
